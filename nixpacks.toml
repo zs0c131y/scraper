@@ -3,6 +3,8 @@
 
 [phases.setup]
 nixPkgs = [
+  # Node.js runtime (must be explicit when nixPkgs is set manually — disables auto-detect)
+  "nodejs_20",
   # Chromium system binary (used as fallback if Puppeteer bundled Chrome fails)
   "chromium",
   # Graphics / display stack
