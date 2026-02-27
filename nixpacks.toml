@@ -40,7 +40,7 @@ nixPkgs = [
 ]
 
 [phases.build]
-cmds = ["npm ci --omit=dev"]
+cmds = ["npm ci --omit=dev --cache /tmp/npm-cache"]
 
 [start]
 cmd = "node server.js"
