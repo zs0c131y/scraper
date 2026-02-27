@@ -1,0 +1,44 @@
+# Railway Nixpacks configuration
+# Installs system-level dependencies that Chromium needs in a container.
+
+[phases.setup]
+nixPkgs = [
+  # Chromium system binary (used as fallback if Puppeteer bundled Chrome fails)
+  "chromium",
+  # Graphics / display stack
+  "glib",
+  "nss",
+  "nspr",
+  "atk",
+  "at-spi2-atk",
+  "cups",
+  "cairo",
+  "pango",
+  "expat",
+  "libdrm",
+  "mesa",
+  # X11 (headless Chromium still needs these)
+  "xorg.libX11",
+  "xorg.libxcb",
+  "xorg.libXcomposite",
+  "xorg.libXdamage",
+  "xorg.libXext",
+  "xorg.libXfixes",
+  "xorg.libXi",
+  "xorg.libXrandr",
+  "xorg.libXrender",
+  "xorg.libXtst",
+  "xorg.libxshmfence",
+  # Input / keyboard
+  "libxkbcommon",
+  # Misc
+  "udev",
+  "dbus",
+  "alsa-lib",
+]
+
+[phases.build]
+cmds = ["npm ci --omit=dev"]
+
+[start]
+cmd = "node server.js"

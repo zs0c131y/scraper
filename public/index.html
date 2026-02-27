@@ -1,0 +1,2110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CAPTURA — Web Capture API</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* ── Reset & Base ─────────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg-0: #020408;
+        --bg-1: #080c14;
+        --bg-2: #0d1322;
+        --bg-card: #101828;
+        --bg-hover: #141e30;
+        --border: #1d2d45;
+        --border-bright: #2a4060;
+
+        --cyan: #00e5ff;
+        --cyan-dim: #00b8cc;
+        --cyan-glow: rgba(0, 229, 255, 0.18);
+        --amber: #ffb800;
+        --amber-dim: #cc9200;
+        --amber-glow: rgba(255, 184, 0, 0.15);
+        --violet: #a855f7;
+        --violet-dim: #8b3de8;
+        --violet-glow: rgba(168, 85, 247, 0.15);
+        --emerald: #10d9a0;
+        --emerald-glow: rgba(16, 217, 160, 0.15);
+        --danger: #ff4e6a;
+        --danger-glow: rgba(255, 78, 106, 0.15);
+
+        --text-1: #e8f0ff;
+        --text-2: #8ea0bc;
+        --text-3: #4a5e7a;
+
+        --radius: 10px;
+        --radius-lg: 16px;
+        --transition: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        --font-ui: "Syne", system-ui, sans-serif;
+        --font-mono: "JetBrains Mono", "Fira Code", monospace;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        font-family: var(--font-ui);
+        background: var(--bg-0);
+        color: var(--text-1);
+        min-height: 100vh;
+        overflow-x: hidden;
+        line-height: 1.6;
+      }
+
+      /* Animated deep-space background */
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse 80% 60% at 10% 0%,
+            rgba(0, 229, 255, 0.06) 0%,
+            transparent 55%
+          ),
+          radial-gradient(
+            ellipse 60% 50% at 90% 100%,
+            rgba(168, 85, 247, 0.07) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse 50% 40% at 50% 50%,
+            rgba(16, 24, 40, 0.9) 0%,
+            transparent 70%
+          );
+        z-index: 0;
+        pointer-events: none;
+      }
+
+      /* Grid overlay */
+      body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(0, 229, 255, 0.018) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(0, 229, 255, 0.018) 1px, transparent 1px);
+        background-size: 48px 48px;
+        z-index: 0;
+        pointer-events: none;
+        mask-image: radial-gradient(
+          ellipse 80% 80% at 50% 0%,
+          black 40%,
+          transparent 100%
+        );
+      }
+
+      /* ── Layout ───────────────────────────────────────────────── */
+      #app {
+        position: relative;
+        z-index: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 0 20px 80px;
+      }
+
+      /* ── Header ───────────────────────────────────────────────── */
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 28px 0 48px;
+        gap: 16px;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .logo-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, var(--cyan) 0%, #0066ff 100%);
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.35);
+      }
+
+      .logo-icon svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .logo-text {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .logo-title {
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        color: var(--text-1);
+        line-height: 1;
+      }
+      .logo-sub {
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 0.06em;
+        color: var(--text-3);
+        font-family: var(--font-mono);
+        text-transform: uppercase;
+      }
+
+      .header-status {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .status-dot {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-3);
+        letter-spacing: 0.04em;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--text-3);
+        animation: pulse 2s ease-in-out infinite;
+      }
+      .dot.online {
+        background: var(--emerald);
+        box-shadow: 0 0 8px var(--emerald);
+      }
+      .dot.error {
+        background: var(--danger);
+        animation: none;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.4;
+        }
+      }
+
+      .stats-pill {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-3);
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 5px 12px;
+        cursor: pointer;
+        transition:
+          border-color var(--transition),
+          color var(--transition);
+      }
+      .stats-pill:hover {
+        border-color: var(--border-bright);
+        color: var(--text-2);
+      }
+
+      /* ── Hero ─────────────────────────────────────────────────── */
+      .hero {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+
+      .hero-title {
+        font-size: clamp(36px, 5vw, 56px);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+        margin-bottom: 14px;
+        background: linear-gradient(
+          135deg,
+          var(--text-1) 0%,
+          var(--cyan) 60%,
+          #6699ff 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .hero-sub {
+        font-size: 15px;
+        color: var(--text-3);
+        font-family: var(--font-mono);
+        letter-spacing: 0.02em;
+      }
+
+      /* ── Mode Tabs ────────────────────────────────────────────── */
+      .mode-tabs {
+        display: flex;
+        gap: 6px;
+        background: var(--bg-1);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 5px;
+        margin-bottom: 24px;
+      }
+
+      .mode-tab {
+        flex: 1;
+        padding: 10px 16px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--text-3);
+        font-family: var(--font-ui);
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all var(--transition);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .mode-tab:hover {
+        color: var(--text-2);
+        background: var(--bg-card);
+      }
+
+      .mode-tab.active[data-mode="screenshot"] {
+        background: linear-gradient(
+          135deg,
+          rgba(0, 229, 255, 0.15),
+          rgba(0, 229, 255, 0.08)
+        );
+        color: var(--cyan);
+        border: 1px solid rgba(0, 229, 255, 0.2);
+        box-shadow: 0 0 20px rgba(0, 229, 255, 0.1);
+      }
+
+      .mode-tab.active[data-mode="scrape"] {
+        background: linear-gradient(
+          135deg,
+          rgba(16, 217, 160, 0.15),
+          rgba(16, 217, 160, 0.08)
+        );
+        color: var(--emerald);
+        border: 1px solid rgba(16, 217, 160, 0.2);
+        box-shadow: 0 0 20px rgba(16, 217, 160, 0.1);
+      }
+
+      .mode-tab.active[data-mode="pdf"] {
+        background: linear-gradient(
+          135deg,
+          rgba(168, 85, 247, 0.15),
+          rgba(168, 85, 247, 0.08)
+        );
+        color: var(--violet);
+        border: 1px solid rgba(168, 85, 247, 0.2);
+        box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
+      }
+
+      .tab-icon {
+        font-size: 15px;
+      }
+
+      /* ── Input Card ───────────────────────────────────────────── */
+      .capture-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 24px;
+        margin-bottom: 20px;
+        transition: border-color var(--transition);
+      }
+
+      .capture-card:focus-within {
+        border-color: var(--border-bright);
+      }
+
+      .url-row {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .url-input-wrap {
+        flex: 1;
+        position: relative;
+      }
+
+      .url-prefix {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-3);
+        font-family: var(--font-mono);
+        font-size: 13px;
+        pointer-events: none;
+        user-select: none;
+      }
+
+      .url-input {
+        width: 100%;
+        padding: 14px 14px 14px 52px;
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        color: var(--text-1);
+        font-family: var(--font-mono);
+        font-size: 14px;
+        outline: none;
+        transition:
+          border-color var(--transition),
+          box-shadow var(--transition);
+        letter-spacing: 0.02em;
+      }
+
+      .url-input::placeholder {
+        color: var(--text-3);
+      }
+      .url-input:focus {
+        border-color: var(--cyan-dim);
+        box-shadow: 0 0 0 3px var(--cyan-glow);
+      }
+
+      .capture-btn {
+        padding: 14px 28px;
+        border: none;
+        border-radius: var(--radius);
+        font-family: var(--font-ui);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all var(--transition);
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .capture-btn::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to right,
+          transparent,
+          rgba(255, 255, 255, 0.08),
+          transparent
+        );
+        transform: translateX(-100%);
+        transition: transform 0.5s;
+      }
+
+      .capture-btn:hover::before {
+        transform: translateX(100%);
+      }
+
+      .capture-btn[data-mode="screenshot"] {
+        background: linear-gradient(135deg, var(--cyan), #0088cc);
+        color: var(--bg-0);
+        box-shadow: 0 4px 20px rgba(0, 229, 255, 0.3);
+      }
+
+      .capture-btn[data-mode="screenshot"]:hover {
+        box-shadow: 0 4px 30px rgba(0, 229, 255, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .capture-btn[data-mode="scrape"] {
+        background: linear-gradient(135deg, var(--emerald), #0a9b72);
+        color: var(--bg-0);
+        box-shadow: 0 4px 20px rgba(16, 217, 160, 0.3);
+      }
+
+      .capture-btn[data-mode="scrape"]:hover {
+        box-shadow: 0 4px 30px rgba(16, 217, 160, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .capture-btn[data-mode="pdf"] {
+        background: linear-gradient(135deg, var(--violet), #6b21d4);
+        color: white;
+        box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
+      }
+
+      .capture-btn[data-mode="pdf"]:hover {
+        box-shadow: 0 4px 30px rgba(168, 85, 247, 0.5);
+        transform: translateY(-1px);
+      }
+
+      .capture-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+      }
+
+      /* ── Options ──────────────────────────────────────────────── */
+      .options-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: none;
+        border: none;
+        color: var(--text-3);
+        font-family: var(--font-ui);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        padding: 0;
+        transition: color var(--transition);
+      }
+
+      .options-toggle:hover {
+        color: var(--text-2);
+      }
+
+      .options-toggle .chevron {
+        transition: transform var(--transition);
+        font-size: 10px;
+      }
+
+      .options-toggle.open .chevron {
+        transform: rotate(180deg);
+      }
+
+      .options-panel {
+        display: none;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 20px;
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+
+      .options-panel.open {
+        display: grid;
+      }
+      .options-panel.cols-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .option-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .option-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+
+      .option-input,
+      .option-select {
+        padding: 8px 12px;
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        color: var(--text-1);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        outline: none;
+        transition: border-color var(--transition);
+        width: 100%;
+      }
+
+      .option-input:focus,
+      .option-select:focus {
+        border-color: var(--border-bright);
+      }
+      .option-select option {
+        background: var(--bg-1);
+      }
+
+      .option-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        color: var(--text-2);
+        user-select: none;
+      }
+
+      .option-check input[type="checkbox"] {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--cyan);
+        cursor: pointer;
+      }
+
+      .option-group.span-2 {
+        grid-column: 1 / -1;
+      }
+
+      /* ── Loading State ─────────────────────────────────────────── */
+      .scan-overlay {
+        display: none;
+        position: relative;
+        height: 4px;
+        border-radius: 2px;
+        background: var(--border);
+        overflow: hidden;
+        margin-bottom: 20px;
+      }
+
+      .scan-overlay.active {
+        display: block;
+      }
+
+      .scan-bar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 40%;
+        border-radius: 2px;
+        animation: scan 1.5s ease-in-out infinite;
+      }
+
+      .scan-bar.screenshot {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--cyan),
+          transparent
+        );
+      }
+      .scan-bar.scrape {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--emerald),
+          transparent
+        );
+      }
+      .scan-bar.pdf {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--violet),
+          transparent
+        );
+      }
+
+      @keyframes scan {
+        0% {
+          left: -40%;
+        }
+        100% {
+          left: 100%;
+        }
+      }
+
+      .status-text {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-3);
+        text-align: center;
+        padding: 12px;
+        display: none;
+      }
+
+      .status-text.visible {
+        display: block;
+      }
+
+      /* ── Result Area ──────────────────────────────────────────── */
+      .result-area {
+        display: none;
+        animation: fadeUp 0.4s ease forwards;
+      }
+
+      .result-area.visible {
+        display: block;
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Screenshot result */
+      .img-result-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .result-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .result-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-3);
+      }
+
+      .result-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        font-family: var(--font-mono);
+        letter-spacing: 0.04em;
+      }
+
+      .badge-cyan {
+        background: rgba(0, 229, 255, 0.1);
+        color: var(--cyan);
+        border: 1px solid rgba(0, 229, 255, 0.2);
+      }
+      .badge-emerald {
+        background: rgba(16, 217, 160, 0.1);
+        color: var(--emerald);
+        border: 1px solid rgba(16, 217, 160, 0.2);
+      }
+      .badge-violet {
+        background: rgba(168, 85, 247, 0.1);
+        color: var(--violet);
+        border: 1px solid rgba(168, 85, 247, 0.2);
+      }
+      .badge-amber {
+        background: rgba(255, 184, 0, 0.1);
+        color: var(--amber);
+        border: 1px solid rgba(255, 184, 0, 0.2);
+      }
+
+      .result-actions {
+        display: flex;
+        gap: 8px;
+      }
+
+      .action-btn {
+        padding: 6px 14px;
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        color: var(--text-2);
+        font-family: var(--font-ui);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all var(--transition);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .action-btn:hover {
+        border-color: var(--border-bright);
+        color: var(--text-1);
+        background: var(--bg-hover);
+      }
+      .action-btn.success {
+        color: var(--emerald);
+        border-color: rgba(16, 217, 160, 0.3);
+      }
+
+      .screenshot-preview {
+        display: block;
+        width: 100%;
+        height: auto;
+        max-height: 600px;
+        object-fit: contain;
+        background: #000;
+      }
+
+      /* Scrape result */
+      .scrape-result-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+      }
+
+      .scrape-tabs {
+        display: flex;
+        border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+      }
+
+      .scrape-tab {
+        padding: 12px 18px;
+        border: none;
+        background: none;
+        color: var(--text-3);
+        font-family: var(--font-ui);
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all var(--transition);
+        white-space: nowrap;
+      }
+
+      .scrape-tab:hover {
+        color: var(--text-2);
+      }
+      .scrape-tab.active {
+        color: var(--emerald);
+        border-bottom-color: var(--emerald);
+      }
+
+      .scrape-pane {
+        display: none;
+      }
+      .scrape-pane.active {
+        display: block;
+      }
+
+      .code-block {
+        background: var(--bg-0);
+        padding: 20px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        line-height: 1.7;
+        color: var(--text-2);
+        overflow: auto;
+        max-height: 500px;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+
+      .code-block .tag {
+        color: #7dd3fc;
+      }
+      .code-block .attr {
+        color: #c4b5fd;
+      }
+      .code-block .val {
+        color: #a3e635;
+      }
+      .code-block .text {
+        color: var(--text-2);
+      }
+
+      .meta-table {
+        width: 100%;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        border-collapse: collapse;
+      }
+
+      .meta-table tr {
+        border-bottom: 1px solid var(--border);
+      }
+      .meta-table tr:last-child {
+        border-bottom: none;
+      }
+
+      .meta-table td {
+        padding: 10px 20px;
+        vertical-align: top;
+      }
+      .meta-table td:first-child {
+        color: var(--text-3);
+        width: 35%;
+      }
+      .meta-table td:last-child {
+        color: var(--text-2);
+        word-break: break-word;
+      }
+
+      .links-list {
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .link-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 7px;
+        transition: background var(--transition);
+        font-family: var(--font-mono);
+        font-size: 11px;
+      }
+
+      .link-item:hover {
+        background: var(--bg-hover);
+      }
+      .link-item .link-text {
+        color: var(--text-3);
+        flex-shrink: 0;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .link-item a {
+        color: var(--cyan-dim);
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .link-item a:hover {
+        color: var(--cyan);
+        text-decoration: underline;
+      }
+
+      /* ── History ──────────────────────────────────────────────── */
+      .history-section {
+        margin-top: 48px;
+      }
+
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .section-title {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-3);
+      }
+
+      .clear-btn {
+        background: none;
+        border: none;
+        color: var(--text-3);
+        font-family: var(--font-ui);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: color var(--transition);
+      }
+
+      .clear-btn:hover {
+        color: var(--danger);
+      }
+
+      .history-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .history-item {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        cursor: pointer;
+        transition: all var(--transition);
+      }
+
+      .history-item:hover {
+        border-color: var(--border-bright);
+        background: var(--bg-hover);
+      }
+
+      .history-thumb {
+        width: 56px;
+        height: 36px;
+        border-radius: 5px;
+        object-fit: cover;
+        background: var(--bg-2);
+        flex-shrink: 0;
+        border: 1px solid var(--border);
+      }
+
+      .history-thumb-placeholder {
+        width: 56px;
+        height: 36px;
+        border-radius: 5px;
+        background: var(--bg-2);
+        border: 1px solid var(--border);
+        flex-shrink: 0;
+        display: grid;
+        place-items: center;
+        font-size: 16px;
+      }
+
+      .history-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .history-url {
+        font-family: var(--font-mono);
+        font-size: 12px;
+        color: var(--text-2);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-bottom: 3px;
+      }
+
+      .history-meta {
+        font-family: var(--font-mono);
+        font-size: 11px;
+        color: var(--text-3);
+      }
+
+      .history-empty {
+        text-align: center;
+        padding: 32px;
+        color: var(--text-3);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        background: var(--bg-card);
+        border: 1px dashed var(--border);
+        border-radius: var(--radius);
+      }
+
+      /* ── API Key Banner ───────────────────────────────────────── */
+      .api-key-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+        background: rgba(255, 184, 0, 0.05);
+        border: 1px solid rgba(255, 184, 0, 0.15);
+        border-radius: var(--radius);
+        margin-bottom: 16px;
+      }
+
+      .api-key-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--amber);
+        white-space: nowrap;
+      }
+
+      .api-key-input {
+        flex: 1;
+        padding: 6px 12px;
+        background: var(--bg-2);
+        border: 1px solid rgba(255, 184, 0, 0.2);
+        border-radius: 7px;
+        color: var(--text-1);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        outline: none;
+      }
+
+      .api-key-input:focus {
+        border-color: var(--amber-dim);
+      }
+
+      /* ── Error Toast ──────────────────────────────────────────── */
+      .error-toast {
+        display: none;
+        padding: 12px 16px;
+        background: rgba(255, 78, 106, 0.1);
+        border: 1px solid rgba(255, 78, 106, 0.25);
+        border-radius: var(--radius);
+        color: var(--danger);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        margin-bottom: 16px;
+        animation: fadeUp 0.3s ease;
+      }
+
+      .error-toast.visible {
+        display: block;
+      }
+
+      /* ── Scrollbar ────────────────────────────────────────────── */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-1);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--border-bright);
+      }
+
+      /* ── Responsive ───────────────────────────────────────────── */
+      @media (max-width: 640px) {
+        .mode-tab span {
+          display: none;
+        }
+        .options-panel {
+          grid-template-columns: 1fr;
+        }
+        .options-panel.cols-3 {
+          grid-template-columns: 1fr 1fr;
+        }
+        .url-row {
+          flex-direction: column;
+        }
+        .capture-btn {
+          width: 100%;
+          justify-content: center;
+        }
+        .header-status .stats-pill {
+          display: none;
+        }
+        .hero-title {
+          font-size: 32px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Header -->
+      <header>
+        <div class="logo">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M23 7l-7 5 7 5V7z" fill="currentColor" />
+              <rect
+                x="1"
+                y="5"
+                width="15"
+                height="14"
+                rx="2"
+                fill="currentColor"
+              />
+            </svg>
+          </div>
+          <div class="logo-text">
+            <span class="logo-title">CAPTURA</span>
+            <span class="logo-sub">Web Capture API</span>
+          </div>
+        </div>
+        <div class="header-status">
+          <button class="stats-pill" id="statsToggle" onclick="fetchStats()">
+            <span id="statsLabel">loading stats...</span>
+          </button>
+          <div class="status-dot">
+            <div class="dot" id="statusDot"></div>
+            <span id="statusLabel">connecting</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Hero -->
+      <div class="hero">
+        <h1 class="hero-title">Capture the Web</h1>
+        <p class="hero-sub">
+          POST a URL → get a screenshot, scraped HTML, or PDF
+        </p>
+      </div>
+
+      <!-- API Key (shown if server returns 401) -->
+      <div class="api-key-row" id="apiKeyRow" style="display: none">
+        <span class="api-key-label">⚿ API Key</span>
+        <input
+          type="password"
+          class="api-key-input"
+          id="apiKeyInput"
+          placeholder="Enter your x-api-key..."
+        />
+      </div>
+
+      <!-- Mode Tabs -->
+      <div class="mode-tabs">
+        <button
+          class="mode-tab active"
+          data-mode="screenshot"
+          onclick="setMode('screenshot')"
+        >
+          <span class="tab-icon">📸</span>
+          <span>Screenshot</span>
+        </button>
+        <button class="mode-tab" data-mode="scrape" onclick="setMode('scrape')">
+          <span class="tab-icon">🔍</span>
+          <span>Scrape</span>
+        </button>
+        <button class="mode-tab" data-mode="pdf" onclick="setMode('pdf')">
+          <span class="tab-icon">📄</span>
+          <span>PDF</span>
+        </button>
+      </div>
+
+      <!-- Error Toast -->
+      <div class="error-toast" id="errorToast"></div>
+
+      <!-- Capture Card -->
+      <div class="capture-card">
+        <div class="url-row">
+          <div class="url-input-wrap">
+            <span class="url-prefix">https://</span>
+            <input
+              type="url"
+              class="url-input"
+              id="urlInput"
+              placeholder="example.com or paste a full URL"
+              autocomplete="url"
+              spellcheck="false"
+            />
+          </div>
+          <button
+            class="capture-btn"
+            id="captureBtn"
+            data-mode="screenshot"
+            onclick="runCapture()"
+          >
+            <span id="captureBtnIcon">⚡</span>
+            <span id="captureBtnLabel">Capture</span>
+          </button>
+        </div>
+
+        <!-- Options toggle -->
+        <button
+          class="options-toggle"
+          id="optionsToggle"
+          onclick="toggleOptions()"
+        >
+          Options
+          <span class="chevron">▾</span>
+        </button>
+
+        <!-- Screenshot options -->
+        <div class="options-panel cols-3" id="opts-screenshot">
+          <div class="option-group">
+            <label class="option-label">Width (px)</label>
+            <input
+              type="number"
+              class="option-input"
+              id="opt-width"
+              value="1280"
+              min="320"
+              max="3840"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-label">Height (px)</label>
+            <input
+              type="number"
+              class="option-input"
+              id="opt-height"
+              value="800"
+              min="240"
+              max="2160"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-label">Format</label>
+            <select class="option-select" id="opt-format">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WebP</option>
+            </select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Wait For</label>
+            <select class="option-select" id="opt-waitFor">
+              <option value="networkidle2">networkidle2</option>
+              <option value="networkidle0">networkidle0</option>
+              <option value="load">load</option>
+              <option value="domcontentloaded">DOMContentLoaded</option>
+            </select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Extra wait (ms)</label>
+            <input
+              type="number"
+              class="option-input"
+              id="opt-waitMs"
+              value="0"
+              min="0"
+              max="10000"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-label">Element selector</label>
+            <input
+              type="text"
+              class="option-input"
+              id="opt-selector"
+              placeholder="#main, .hero, div.article"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="opt-fullpage" />
+              Full-page screenshot
+            </label>
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="opt-darkmode" />
+              Dark mode
+            </label>
+          </div>
+        </div>
+
+        <!-- Scrape options -->
+        <div
+          class="options-panel cols-3"
+          id="opts-scrape"
+          style="display: none"
+        >
+          <div class="option-group">
+            <label class="option-label">CSS Selector</label>
+            <input
+              type="text"
+              class="option-input"
+              id="scr-selector"
+              placeholder="body, article, #content"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-label">Wait For</label>
+            <select class="option-select" id="scr-waitFor">
+              <option value="domcontentloaded">DOMContentLoaded</option>
+              <option value="networkidle2">networkidle2</option>
+              <option value="load">load</option>
+            </select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Extra wait (ms)</label>
+            <input
+              type="number"
+              class="option-input"
+              id="scr-waitMs"
+              value="0"
+              min="0"
+              max="10000"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="scr-links" />
+              Extract links
+            </label>
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="scr-images" />
+              Extract images
+            </label>
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="scr-text" />
+              Plain text only
+            </label>
+          </div>
+          <div class="option-group span-2">
+            <label class="option-label">Custom JS eval (return value)</label>
+            <input
+              type="text"
+              class="option-input"
+              id="scr-eval"
+              placeholder="document.querySelectorAll('h1').length"
+            />
+          </div>
+        </div>
+
+        <!-- PDF options -->
+        <div class="options-panel cols-3" id="opts-pdf" style="display: none">
+          <div class="option-group">
+            <label class="option-label">Page Format</label>
+            <select class="option-select" id="pdf-format">
+              <option value="A4">A4</option>
+              <option value="Letter">Letter</option>
+              <option value="A3">A3</option>
+              <option value="A5">A5</option>
+              <option value="Legal">Legal</option>
+            </select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Wait For</label>
+            <select class="option-select" id="pdf-waitFor">
+              <option value="networkidle2">networkidle2</option>
+              <option value="networkidle0">networkidle0</option>
+              <option value="load">load</option>
+            </select>
+          </div>
+          <div class="option-group">
+            <label class="option-label">Extra wait (ms)</label>
+            <input
+              type="number"
+              class="option-input"
+              id="pdf-waitMs"
+              value="0"
+              min="0"
+              max="10000"
+            />
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="pdf-landscape" />
+              Landscape
+            </label>
+          </div>
+          <div class="option-group">
+            <label class="option-check">
+              <input type="checkbox" id="pdf-bg" checked />
+              Print background
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scan progress bar -->
+      <div class="scan-overlay" id="scanOverlay">
+        <div class="scan-bar" id="scanBar"></div>
+      </div>
+
+      <!-- Status text -->
+      <div class="status-text" id="statusMsg">
+        Launching browser and navigating...
+      </div>
+
+      <!-- Result -->
+      <div class="result-area" id="resultArea">
+        <!-- Screenshot Result -->
+        <div id="resultScreenshot" style="display: none">
+          <div class="img-result-card">
+            <div class="result-toolbar">
+              <div class="result-info">
+                <span class="result-badge badge-cyan" id="imgBadge">PNG</span>
+                <span id="imgSize">—</span>
+                <span id="imgDims">—</span>
+              </div>
+              <div class="result-actions">
+                <button class="action-btn" onclick="copyScreenshotB64()">
+                  ⎘ Copy
+                </button>
+                <a class="action-btn" id="downloadImgBtn" download
+                  >↓ Download</a
+                >
+              </div>
+            </div>
+            <img
+              id="screenshotPreview"
+              class="screenshot-preview"
+              alt="Captured screenshot"
+            />
+          </div>
+        </div>
+
+        <!-- Scrape Result -->
+        <div id="resultScrape" style="display: none">
+          <div class="scrape-result-card">
+            <div class="result-toolbar">
+              <div class="result-info">
+                <span class="result-badge badge-emerald">HTML</span>
+                <span id="scrapeTitle" style="color: var(--text-2)">—</span>
+              </div>
+              <div class="result-actions">
+                <button class="action-btn" onclick="copyHtml()">
+                  ⎘ Copy HTML
+                </button>
+              </div>
+            </div>
+            <div class="scrape-tabs" id="scrapeTabs"></div>
+            <div id="scrapeContent"></div>
+          </div>
+        </div>
+
+        <!-- PDF Result -->
+        <div id="resultPdf" style="display: none">
+          <div class="img-result-card">
+            <div class="result-toolbar">
+              <div class="result-info">
+                <span class="result-badge badge-violet">PDF</span>
+                <span id="pdfSize">—</span>
+              </div>
+              <div class="result-actions">
+                <a class="action-btn" id="downloadPdfBtn" download="page.pdf"
+                  >↓ Download PDF</a
+                >
+              </div>
+            </div>
+            <div
+              style="
+                padding: 48px;
+                text-align: center;
+                color: var(--text-3);
+                font-family: var(--font-mono);
+                font-size: 14px;
+              "
+            >
+              📄 PDF generated — click Download to save
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="history-section">
+        <div class="section-header">
+          <span class="section-title">Recent Captures</span>
+          <button class="clear-btn" onclick="clearHistory()">Clear all</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        // ── State ─────────────────────────────────────────────────
+        let currentMode = "screenshot";
+        let optionsOpen = false;
+        let history = [];
+        let lastScreenshotBlob = null;
+        let lastHtml = "";
+        let lastScrapeData = null;
+        let lastPdfBlob = null;
+
+        // ── Init ──────────────────────────────────────────────────
+        checkHealth();
+        loadHistory();
+
+        const urlInput = document.getElementById("urlInput");
+        urlInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") runCapture();
+        });
+
+        // ── Health check ─────────────────────────────────────────
+        async function checkHealth() {
+          try {
+            const r = await fetch("/health");
+            if (r.ok) {
+              setStatus("online", "online");
+            } else {
+              setStatus("error", "error");
+            }
+          } catch {
+            setStatus("error", "offline");
+          }
+        }
+
+        function setStatus(state, label) {
+          const dot = document.getElementById("statusDot");
+          const lbl = document.getElementById("statusLabel");
+          dot.className = "dot " + state;
+          lbl.textContent = label;
+        }
+
+        // ── Stats ─────────────────────────────────────────────────
+        window.fetchStats = async () => {
+          try {
+            const key = document.getElementById("apiKeyInput").value.trim();
+            const headers = {};
+            if (key) headers["x-api-key"] = key;
+            const r = await fetch("/api/stats", { headers });
+            if (!r.ok) return;
+            const d = await r.json();
+            const label = document.getElementById("statsLabel");
+            label.textContent = `req:${d.totalRequests} · err:${d.totalErrors} · active:${d.activePages}`;
+          } catch {}
+        };
+
+        // Refresh stats every 15s
+        setInterval(() => {
+          if (document.visibilityState === "visible") fetchStats();
+        }, 15000);
+        fetchStats();
+
+        // ── Mode ─────────────────────────────────────────────────
+        window.setMode = (mode) => {
+          currentMode = mode;
+
+          document.querySelectorAll(".mode-tab").forEach((t) => {
+            t.classList.toggle("active", t.dataset.mode === mode);
+          });
+
+          const btn = document.getElementById("captureBtn");
+          btn.dataset.mode = mode;
+
+          const icons = { screenshot: "📸", scrape: "🔍", pdf: "📄" };
+          const labels = {
+            screenshot: "Capture",
+            scrape: "Scrape",
+            pdf: "Generate",
+          };
+
+          document.getElementById("captureBtnIcon").textContent = icons[mode];
+          document.getElementById("captureBtnLabel").textContent = labels[mode];
+
+          // Toggle option panels
+          ["screenshot", "scrape", "pdf"].forEach((m) => {
+            const panel = document.getElementById(`opts-${m}`);
+            if (optionsOpen && m === mode) {
+              panel.style.display = null;
+              panel.classList.add("open");
+            } else {
+              panel.style.display = "none";
+              panel.classList.remove("open");
+            }
+          });
+
+          hideResult();
+          hideError();
+        };
+
+        // ── Options ───────────────────────────────────────────────
+        window.toggleOptions = () => {
+          optionsOpen = !optionsOpen;
+          const toggle = document.getElementById("optionsToggle");
+          toggle.classList.toggle("open", optionsOpen);
+
+          const panel = document.getElementById(`opts-${currentMode}`);
+          panel.style.display = optionsOpen ? null : "none";
+          panel.classList.toggle("open", optionsOpen);
+        };
+
+        // ── URL helper ────────────────────────────────────────────
+        function getUrl() {
+          let v = document.getElementById("urlInput").value.trim();
+          if (!v) return "";
+          if (!v.startsWith("http://") && !v.startsWith("https://")) {
+            v = "https://" + v;
+          }
+          return v;
+        }
+
+        // ── Headers helper ────────────────────────────────────────
+        function getHeaders() {
+          const h = { "Content-Type": "application/json" };
+          const key = document.getElementById("apiKeyInput").value.trim();
+          if (key) h["x-api-key"] = key;
+          return h;
+        }
+
+        // ── Capture ───────────────────────────────────────────────
+        window.runCapture = async () => {
+          const url = getUrl();
+          if (!url) {
+            showError("Please enter a URL.");
+            return;
+          }
+
+          setLoading(true);
+          hideResult();
+          hideError();
+
+          try {
+            if (currentMode === "screenshot") await doScreenshot(url);
+            else if (currentMode === "scrape") await doScrape(url);
+            else if (currentMode === "pdf") await doPdf(url);
+          } catch (err) {
+            showError(
+              err.message || "Request failed. Check the URL and try again.",
+            );
+          } finally {
+            setLoading(false);
+          }
+        };
+
+        // ── Screenshot ────────────────────────────────────────────
+        async function doScreenshot(url) {
+          const body = {
+            url,
+            width: parseInt(document.getElementById("opt-width").value) || 1280,
+            height:
+              parseInt(document.getElementById("opt-height").value) || 800,
+            format: document.getElementById("opt-format").value,
+            waitFor: document.getElementById("opt-waitFor").value,
+            waitMs: parseInt(document.getElementById("opt-waitMs").value) || 0,
+            fullPage: document.getElementById("opt-fullpage").checked,
+            darkMode: document.getElementById("opt-darkmode").checked,
+            selector:
+              document.getElementById("opt-selector").value.trim() || undefined,
+          };
+
+          const r = await fetch("/api/screenshot", {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(body),
+          });
+
+          if (r.status === 401) {
+            showApiKeyPrompt();
+            throw new Error("Authentication required. Enter your API key.");
+          }
+          if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            throw new Error(e.error || `HTTP ${r.status}`);
+          }
+
+          const blob = await r.blob();
+          lastScreenshotBlob = blob;
+
+          const blobUrl = URL.createObjectURL(blob);
+          const img = document.getElementById("screenshotPreview");
+          img.src = blobUrl;
+
+          // Get dimensions
+          await new Promise((res) => {
+            img.onload = () => {
+              document.getElementById("imgDims").textContent =
+                `${img.naturalWidth}×${img.naturalHeight}px`;
+              res();
+            };
+            img.onerror = res;
+          });
+
+          const fmt = body.format.toUpperCase();
+          document.getElementById("imgBadge").textContent = fmt;
+          document.getElementById("imgBadge").className =
+            "result-badge badge-cyan";
+          document.getElementById("imgSize").textContent = formatBytes(
+            blob.size,
+          );
+
+          const dl = document.getElementById("downloadImgBtn");
+          dl.href = blobUrl;
+          dl.download = `captura-${Date.now()}.${body.format}`;
+
+          showResult("screenshot");
+          addHistory({
+            mode: "screenshot",
+            url,
+            thumb: blobUrl,
+            size: blob.size,
+            format: fmt,
+          });
+        }
+
+        // ── Scrape ────────────────────────────────────────────────
+        async function doScrape(url) {
+          const body = {
+            url,
+            selector:
+              document.getElementById("scr-selector").value.trim() || undefined,
+            waitFor: document.getElementById("scr-waitFor").value,
+            waitMs: parseInt(document.getElementById("scr-waitMs").value) || 0,
+            extractLinks: document.getElementById("scr-links").checked,
+            extractImages: document.getElementById("scr-images").checked,
+            extractText: document.getElementById("scr-text").checked,
+            evaluate:
+              document.getElementById("scr-eval").value.trim() || undefined,
+          };
+
+          const r = await fetch("/api/scrape", {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(body),
+          });
+
+          if (r.status === 401) {
+            showApiKeyPrompt();
+            throw new Error("Authentication required.");
+          }
+          if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            throw new Error(e.error || `HTTP ${r.status}`);
+          }
+
+          const data = await r.json();
+          lastScrapeData = data;
+          lastHtml = data.html || data.text || "";
+
+          document.getElementById("scrapeTitle").textContent =
+            data.title || "(no title)";
+
+          renderScrapeTabs(data);
+          showResult("scrape");
+          addHistory({
+            mode: "scrape",
+            url,
+            thumb: null,
+            size: lastHtml.length,
+          });
+        }
+
+        function renderScrapeTabs(data) {
+          const tabsEl = document.getElementById("scrapeTabs");
+          const contentEl = document.getElementById("scrapeContent");
+          tabsEl.innerHTML = "";
+          contentEl.innerHTML = "";
+
+          const tabs = [];
+          if (data.html || data.text)
+            tabs.push({ id: "html", label: data.text ? "Text" : "HTML" });
+          if (data.meta) tabs.push({ id: "meta", label: "Meta" });
+          if (data.links)
+            tabs.push({ id: "links", label: `Links (${data.links.length})` });
+          if (data.images)
+            tabs.push({
+              id: "images",
+              label: `Images (${data.images.length})`,
+            });
+          if (data.customResult !== null && data.customResult !== undefined)
+            tabs.push({ id: "eval", label: "Eval" });
+
+          if (!tabs.length) {
+            contentEl.innerHTML =
+              '<div class="code-block">No content extracted.</div>';
+            return;
+          }
+
+          tabs.forEach((t, i) => {
+            const btn = document.createElement("button");
+            btn.className = "scrape-tab" + (i === 0 ? " active" : "");
+            btn.textContent = t.label;
+            btn.onclick = () => {
+              document
+                .querySelectorAll(".scrape-tab")
+                .forEach((b) => b.classList.remove("active"));
+              document
+                .querySelectorAll(".scrape-pane")
+                .forEach((p) => p.classList.remove("active"));
+              btn.classList.add("active");
+              document.getElementById(`pane-${t.id}`)?.classList.add("active");
+            };
+            tabsEl.appendChild(btn);
+
+            const pane = document.createElement("div");
+            pane.className = "scrape-pane" + (i === 0 ? " active" : "");
+            pane.id = `pane-${t.id}`;
+
+            if (t.id === "html") {
+              const code = document.createElement("div");
+              code.className = "code-block";
+              const content = data.html || data.text || "";
+              code.textContent =
+                content.length > 50000
+                  ? content.substring(0, 50000) +
+                    "\n... (truncated, full content available via API)"
+                  : content;
+              pane.appendChild(code);
+            } else if (t.id === "meta") {
+              const tbl = document.createElement("table");
+              tbl.className = "meta-table";
+              const rows = [
+                ["URL", data.url],
+                ["Title", data.title],
+                ["Canonical", data.canonical],
+              ];
+              if (data.meta)
+                Object.entries(data.meta).forEach(([k, v]) =>
+                  rows.push([k, v]),
+                );
+              rows.forEach(([k, v]) => {
+                if (!v) return;
+                const tr = document.createElement("tr");
+                tr.innerHTML = `<td>${escHtml(k)}</td><td>${escHtml(String(v))}</td>`;
+                tbl.appendChild(tr);
+              });
+              pane.appendChild(tbl);
+            } else if (t.id === "links") {
+              const div = document.createElement("div");
+              div.className = "links-list";
+              data.links.forEach((l) => {
+                div.innerHTML += `<div class="link-item"><span class="link-text">${escHtml(l.text || "—")}</span><a href="${escHtml(l.href)}" target="_blank" rel="noopener">${escHtml(l.href)}</a></div>`;
+              });
+              pane.appendChild(div);
+            } else if (t.id === "images") {
+              const div = document.createElement("div");
+              div.className = "links-list";
+              data.images.forEach((img) => {
+                div.innerHTML += `<div class="link-item"><span class="link-text">${img.width && img.height ? img.width + "×" + img.height : "—"}</span><a href="${escHtml(img.src)}" target="_blank" rel="noopener">${escHtml(img.alt || img.src)}</a></div>`;
+              });
+              pane.appendChild(div);
+            } else if (t.id === "eval") {
+              const code = document.createElement("div");
+              code.className = "code-block";
+              code.textContent = JSON.stringify(data.customResult, null, 2);
+              pane.appendChild(code);
+            }
+
+            contentEl.appendChild(pane);
+          });
+        }
+
+        // ── PDF ───────────────────────────────────────────────────
+        async function doPdf(url) {
+          const body = {
+            url,
+            format: document.getElementById("pdf-format").value,
+            waitFor: document.getElementById("pdf-waitFor").value,
+            waitMs: parseInt(document.getElementById("pdf-waitMs").value) || 0,
+            landscape: document.getElementById("pdf-landscape").checked,
+            printBackground: document.getElementById("pdf-bg").checked,
+          };
+
+          const r = await fetch("/api/pdf", {
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify(body),
+          });
+
+          if (r.status === 401) {
+            showApiKeyPrompt();
+            throw new Error("Authentication required.");
+          }
+          if (!r.ok) {
+            const e = await r.json().catch(() => ({}));
+            throw new Error(e.error || `HTTP ${r.status}`);
+          }
+
+          const blob = await r.blob();
+          lastPdfBlob = blob;
+
+          const blobUrl = URL.createObjectURL(blob);
+          const dl = document.getElementById("downloadPdfBtn");
+          dl.href = blobUrl;
+          dl.download = `captura-${Date.now()}.pdf`;
+
+          document.getElementById("pdfSize").textContent = formatBytes(
+            blob.size,
+          );
+
+          showResult("pdf");
+          addHistory({ mode: "pdf", url, thumb: null, size: blob.size });
+        }
+
+        // ── UI helpers ────────────────────────────────────────────
+        function setLoading(on) {
+          const btn = document.getElementById("captureBtn");
+          const overlay = document.getElementById("scanOverlay");
+          const bar = document.getElementById("scanBar");
+          const msg = document.getElementById("statusMsg");
+
+          btn.disabled = on;
+          overlay.classList.toggle("active", on);
+          msg.classList.toggle("visible", on);
+
+          if (on) {
+            bar.className = `scan-bar ${currentMode}`;
+            msg.textContent =
+              currentMode === "screenshot"
+                ? "📸 Navigating and capturing screenshot..."
+                : currentMode === "scrape"
+                  ? "🔍 Navigating and extracting content..."
+                  : "📄 Navigating and rendering PDF...";
+          }
+        }
+
+        function showResult(type) {
+          document.getElementById("resultArea").classList.add("visible");
+          document.getElementById("resultScreenshot").style.display =
+            type === "screenshot" ? "" : "none";
+          document.getElementById("resultScrape").style.display =
+            type === "scrape" ? "" : "none";
+          document.getElementById("resultPdf").style.display =
+            type === "pdf" ? "" : "none";
+        }
+
+        function hideResult() {
+          document.getElementById("resultArea").classList.remove("visible");
+        }
+
+        function showError(msg) {
+          const el = document.getElementById("errorToast");
+          el.textContent = "⚠ " + msg;
+          el.classList.add("visible");
+        }
+
+        function hideError() {
+          document.getElementById("errorToast").classList.remove("visible");
+        }
+
+        function showApiKeyPrompt() {
+          document.getElementById("apiKeyRow").style.display = "flex";
+          document.getElementById("apiKeyInput").focus();
+        }
+
+        // ── Copy helpers ──────────────────────────────────────────
+        window.copyScreenshotB64 = async () => {
+          if (!lastScreenshotBlob) return;
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({
+                [lastScreenshotBlob.type]: lastScreenshotBlob,
+              }),
+            ]);
+            flashBtn(document.querySelector("#resultScreenshot .action-btn"));
+          } catch {
+            // Fallback: copy as base64 data URL
+            const reader = new FileReader();
+            reader.onload = async () => {
+              await navigator.clipboard.writeText(reader.result);
+            };
+            reader.readAsDataURL(lastScreenshotBlob);
+          }
+        };
+
+        window.copyHtml = async () => {
+          try {
+            await navigator.clipboard.writeText(lastHtml);
+            flashBtn(document.querySelector("#resultScrape .action-btn"));
+          } catch {}
+        };
+
+        function flashBtn(btn) {
+          if (!btn) return;
+          const orig = btn.textContent;
+          btn.textContent = "✓ Copied!";
+          btn.classList.add("success");
+          setTimeout(() => {
+            btn.textContent = orig;
+            btn.classList.remove("success");
+          }, 2000);
+        }
+
+        // ── History ───────────────────────────────────────────────
+        function addHistory(item) {
+          item.ts = Date.now();
+          history.unshift(item);
+          if (history.length > 20) history.pop();
+          saveHistory();
+          renderHistory();
+        }
+
+        function saveHistory() {
+          const toSave = history.map(({ thumb, ...rest }) => rest); // Don't persist blob URLs
+          try {
+            localStorage.setItem("captura_history", JSON.stringify(toSave));
+          } catch {}
+        }
+
+        function loadHistory() {
+          try {
+            const raw = localStorage.getItem("captura_history");
+            if (raw) history = JSON.parse(raw);
+          } catch {}
+          renderHistory();
+        }
+
+        window.clearHistory = () => {
+          history = [];
+          saveHistory();
+          renderHistory();
+        };
+
+        function renderHistory() {
+          const list = document.getElementById("historyList");
+
+          if (!history.length) {
+            list.innerHTML =
+              '<div class="history-empty">Your captures will appear here.</div>';
+            return;
+          }
+
+          list.innerHTML = history
+            .map((item) => {
+              const thumb = item.thumb
+                ? `<img class="history-thumb" src="${item.thumb}" alt="" loading="lazy" />`
+                : `<div class="history-thumb-placeholder">${item.mode === "screenshot" ? "📸" : item.mode === "scrape" ? "🔍" : "📄"}</div>`;
+
+              const when = formatAge(item.ts);
+              const size = item.size ? " · " + formatBytes(item.size) : "";
+
+              return `
+          <div class="history-item" onclick="reloadFromHistory(${JSON.stringify(item.url)}, '${item.mode}')">
+            ${thumb}
+            <div class="history-info">
+              <div class="history-url">${escHtml(item.url)}</div>
+              <div class="history-meta">${item.mode.toUpperCase()}${size} · ${when}</div>
+            </div>
+          </div>`;
+            })
+            .join("");
+        }
+
+        window.reloadFromHistory = (url, mode) => {
+          document.getElementById("urlInput").value = url;
+          setMode(mode);
+          document.getElementById("urlInput").focus();
+        };
+
+        // ── Utils ─────────────────────────────────────────────────
+        function formatBytes(n) {
+          if (n < 1024) return n + " B";
+          if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+          return (n / 1024 / 1024).toFixed(2) + " MB";
+        }
+
+        function formatAge(ts) {
+          const s = Math.floor((Date.now() - ts) / 1000);
+          if (s < 60) return "just now";
+          if (s < 3600) return Math.floor(s / 60) + "m ago";
+          if (s < 86400) return Math.floor(s / 3600) + "h ago";
+          return Math.floor(s / 86400) + "d ago";
+        }
+
+        function escHtml(str) {
+          return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
+        }
+      })();
+    </script>
+  </body>
+</html>
