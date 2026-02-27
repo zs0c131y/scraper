@@ -7,6 +7,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
 const path = require("path");
+const billing = require("./db");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -206,6 +207,100 @@ class BrowserPool {
 
 const pool = new BrowserPool();
 
+// ─── Shutdown page ────────────────────────────────────────────────────────────
+function shutdownPage() {
+  const stats = billing.getFullStats();
+  const cost = stats.billing.cumulativeCostUsd.toFixed(4);
+  const budg = stats.billing.budgetUsd.toFixed(2);
+  const pct = stats.billing.percentUsed.toFixed(1);
+  const reqs = stats.requests.total;
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CAPTURA — Service Suspended</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#020408;--card:#0d1322;--border:#1d2d45;
+  --red:#ff4e6a;--red-dim:rgba(255,78,106,.12);
+  --amber:#ffb800;--text-1:#e8f0ff;--text-2:#8ea0bc;--text-3:#4a5e7a;
+  --mono:'JetBrains Mono',monospace;--ui:'Syne',sans-serif;
+}
+html,body{height:100%;font-family:var(--ui);background:var(--bg);color:var(--text-1)}
+body{
+  display:flex;align-items:center;justify-content:center;min-height:100vh;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%,rgba(255,78,106,.06) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 100%,rgba(255,78,106,.04) 0%,transparent 50%),
+    var(--bg);
+}
+body::after{
+  content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(255,78,106,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,78,106,.015) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 0%,black 30%,transparent 100%);
+}
+.card{
+  position:relative;z-index:1;max-width:520px;width:90%;
+  background:var(--card);border:1px solid rgba(255,78,106,.25);
+  border-radius:20px;padding:48px 40px;text-align:center;
+  box-shadow:0 0 60px rgba(255,78,106,.08),0 24px 48px rgba(0,0,0,.5);
+}
+.icon{
+  width:64px;height:64px;border-radius:16px;margin:0 auto 28px;
+  background:var(--red-dim);border:1px solid rgba(255,78,106,.2);
+  display:grid;place-items:center;font-size:28px;
+  box-shadow:0 0 30px rgba(255,78,106,.15);
+}
+h1{font-size:28px;font-weight:800;letter-spacing:-.01em;margin-bottom:10px}
+h1 span{color:var(--red)}
+.sub{font-family:var(--mono);font-size:13px;color:var(--text-3);margin-bottom:36px;line-height:1.6}
+.meter{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;height:6px;margin-bottom:28px;overflow:hidden}
+.meter-fill{height:100%;border-radius:8px;background:linear-gradient(90deg,var(--amber),var(--red));width:${pct}%}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:32px}
+.stat{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:14px 12px}
+.stat-val{font-size:20px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.stat-val.red{color:var(--red)}
+.stat-val.amber{color:var(--amber)}
+.stat-key{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3)}
+.note{font-family:var(--mono);font-size:11px;color:var(--text-3);line-height:1.7;
+  background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:8px;padding:14px}
+.note code{color:var(--amber)}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">⚡</div>
+  <h1>Service <span>Suspended</span></h1>
+  <p class="sub">This Captura instance has reached its monthly<br/>Railway compute budget and is temporarily offline.</p>
+  <div class="meter"><div class="meter-fill"></div></div>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-val red">$${cost}</div>
+      <div class="stat-key">spent</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val amber">$${budg}</div>
+      <div class="stat-key">budget</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val">${reqs.toLocaleString()}</div>
+      <div class="stat-key">requests</div>
+    </div>
+  </div>
+  <div class="note">
+    To resume, call <code>POST /api/admin/reset</code> with a higher<br/>
+    <code>newBudget</code> value, or redeploy with <code>BUDGET_USD</code> env var raised.
+  </div>
+</div>
+</body>
+</html>`;
+}
+
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(compression());
 app.use(
@@ -222,6 +317,50 @@ app.use(
 );
 app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(__dirname, "public")));
+
+// ─── Shutdown middleware ───────────────────────────────────────────────────────
+// Must come before rate limiter and routes. Lets /health and /api/stats through.
+app.use((req, res, next) => {
+  if (!billing.isShutdown()) return next();
+
+  // Always allow health + stats so monitoring still works
+  if (
+    req.path === "/health" ||
+    req.path === "/api/stats" ||
+    req.path === "/api/billing"
+  ) {
+    return next();
+  }
+
+  // API calls → JSON error
+  if (req.path.startsWith("/api/")) {
+    return res.status(503).json({
+      error: "Service suspended: monthly budget limit reached.",
+      shutdown: true,
+    });
+  }
+
+  // Browser → full HTML shutdown page
+  return res.status(503).send(shutdownPage());
+});
+
+// ─── Request logger ───────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (req.method === "POST" && req.path.startsWith("/api/")) {
+    req._startedAt = Date.now();
+    res.on("finish", () => {
+      billing.logRequest({
+        endpoint: req.path,
+        url: req.body?.url || null,
+        startedAt: req._startedAt,
+        durationMs: Date.now() - req._startedAt,
+        statusCode: res.statusCode,
+        error: res.statusCode >= 400 ? String(res.statusCode) : null,
+      });
+    });
+  }
+  next();
+});
 
 // Rate limiter
 const limiter = rateLimit({
@@ -313,7 +452,27 @@ app.get("/health", (req, res) => {
 
 // Stats
 app.get("/api/stats", authMiddleware, (req, res) => {
-  res.json(pool.getStats());
+  res.json({ ...pool.getStats(), ...billing.getFullStats() });
+});
+
+// Billing detail
+app.get("/api/billing", authMiddleware, (req, res) => {
+  res.json({
+    ...billing.getFullStats(),
+    history: billing.getBillingHistory(),
+    recentRequests: billing.getRecentRequests(),
+  });
+});
+
+// Admin: reset shutdown + optionally raise budget (requires API key if set)
+app.post("/api/admin/reset", authMiddleware, (req, res) => {
+  const { newBudget } = req.body || {};
+  billing.resetShutdown(newBudget);
+  res.json({
+    ok: true,
+    message: "Shutdown flag cleared.",
+    ...billing.getFullStats(),
+  });
 });
 
 // ── Screenshot ─────────────────────────────────────────────────────────────────
@@ -637,6 +796,8 @@ app.post("/api/pdf", authMiddleware, async (req, res) => {
 
 // ─── Catch-all serve index.html ───────────────────────────────────────────────
 app.get("*", (req, res) => {
+  // Shutdown check is already handled by the middleware above;
+  // if we reach here the site is up.
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 

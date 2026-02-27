@@ -1,5 +1,9 @@
 [build]
 builder = "NIXPACKS"
+buildCommand = "npm ci --omit=dev --cache /tmp/npm-cache"
+
+[build.nixpacksPlan.phases.setup]
+nixPkgs = ["nodejs_20", "gcc", "gnumake", "python3", "chromium", "glib", "nss", "nspr", "atk", "at-spi2-atk", "cups", "cairo", "pango", "expat", "libdrm", "mesa", "xorg.libX11", "xorg.libxcb", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXi", "xorg.libXrandr", "xorg.libXrender", "xorg.libXtst", "xorg.libxshmfence", "libxkbcommon", "udev", "dbus", "alsa-lib"]
 
 [deploy]
 startCommand = "node server.js"
